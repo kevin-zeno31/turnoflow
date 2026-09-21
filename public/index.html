@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TurnoFlow · Atención en orden</title>
+  <meta name="description" content="Demostración local de gestión de turnos: solicitud, atención y pantalla pública.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="#operador"><span class="mark">T</span>Turno<span>Flow</span></a><span class="demo-tag">DEMO LOCAL</span></header>
+  <div class="shell">
+    <aside><p class="nav-label">ESPACIO DE ATENCIÓN</p><nav aria-label="Vistas de TurnoFlow"><a href="#operador" data-view="operador">◫ <span>Panel del operador</span></a><a href="#solicitar" data-view="solicitar">＋ <span>Solicitar turno</span></a><a href="#pantalla" data-view="pantalla">▣ <span>Pantalla pública</span></a></nav><div class="aside-note"><strong>Centro de atención</strong><span>Módulo 01 · Atención general</span><small>Proyecto de demostración<br>Sin datos personales</small></div></aside>
+    <main>
+      <div class="page-head"><div><p class="eyebrow">TURNOFLOW / <span id="breadcrumb">OPERACIÓN</span></p><h1 id="page-title">Panel del operador</h1><p id="page-description">Una fila ordenada. Una atención a la vez.</p></div><span id="connection" class="connection">Conectando…</span></div>
+      <div id="notice" role="status" aria-live="polite" hidden></div>
+      <section id="operador" class="view">
+        <div class="metrics"><article><span>En espera</span><strong id="waiting-count">—</strong><small>Turnos pendientes</small></article><article><span>En atención</span><strong id="active-count">—</strong><small>Módulo 01</small></article><article><span>Finalizados</span><strong id="done-count">—</strong><small>Total acumulado</small></article></div>
+        <div class="workspace"><article class="current card"><div class="card-heading"><h2>Atención actual</h2><span class="pill">MÓDULO 01</span></div><div class="ticket-focus"><span id="active-label">Sin atención activa</span><strong id="active-code">—</strong><p id="active-hint">Llama al primer turno de la fila.</p></div><button id="call" class="primary" disabled>Llamar siguiente turno <span>→</span></button><button id="finish" class="secondary" disabled>Finalizar atención</button><p class="footnote">Los turnos se atienden por orden de llegada.</p></article>
+        <article class="card queue"><div class="card-heading"><h2>Fila de espera</h2><span id="queue-badge" class="pill">0 TURNOS</span></div><div id="queue-list" class="queue-list"><p class="empty">Cargando turnos…</p></div><a class="text-link" href="#solicitar">Solicitar un nuevo turno ↗</a></article></div>
+        <section class="history"><h2>Últimas atenciones</h2><div id="history-list"><p class="muted">Todavía no hay atenciones finalizadas.</p></div></section>
+      </section>
+      <section id="solicitar" class="view" hidden><article class="request card"><span class="pill">ATENCIÓN GENERAL</span><h2>Tu turno empieza aquí.</h2><p>Solicita un número y espera a que aparezca en la pantalla de llamados.</p><div id="receipt" class="receipt" hidden><span>Tu número de turno</span><strong id="receipt-code"></strong><p>Conserva este número hasta que te llamen.</p></div><button id="request" class="primary" disabled>Obtener mi turno <span>→</span></button><p class="footnote">No necesitas ingresar datos personales.</p></article></section>
+      <section id="pantalla" class="view" hidden><article class="display-board"><div class="display-top"><span>AHORA ATENDIENDO</span><span>MÓDULO 01</span></div><strong id="display-code">—</strong><p id="display-hint">Espera el llamado de tu número.</p><div class="display-next"><span>PRÓXIMOS TURNOS</span><div id="display-queue">Sin turnos en espera</div></div></article></section>
+      <footer>TurnoFlow <span>v0.1 · Una fila · Un módulo</span></footer>
+    </main>
+  </div>
+</body>
+</html>

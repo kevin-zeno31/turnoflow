@@ -1,0 +1,9 @@
+{
+  "name": "turnoflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gestión local de turnos: solicitar, llamar y finalizar.",
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": { "start": "node server.js", "test": "node --test" }
+}
