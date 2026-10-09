@@ -55,13 +55,41 @@ export function openStore(filename) {
       });
     },
     snapshot() {
-      return transaction(() => ({
-        active: present(db.prepare("SELECT id,status,created_at,called_at,finished_at FROM tickets WHERE status='active'").get()),
-        waiting: db.prepare("SELECT id,status,created_at,called_at,finished_at FROM tickets WHERE status='waiting' ORDER BY id LIMIT 100").all().map(present),
-        waitingCount: db.prepare("SELECT count(*) AS count FROM tickets WHERE status='waiting'").get().count,
-        doneCount: db.prepare("SELECT count(*) AS count FROM tickets WHERE status='done'").get().count,
-        recent: db.prepare("SELECT id,status,created_at,called_at,finished_at FROM tickets WHERE status='done' ORDER BY id DESC LIMIT 5").all().map(present)
-      }));
+      return transaction(() => {
+        // Se agrupa por fechas UTC, igual que las marcas de tiempo ISO guardadas.
+        const today = new Date().toISOString().slice(0, 10);
+        const grouped = db.prepare(`
+          SELECT substr(finished_at, 1, 10) AS day, COUNT(*) AS total
+          FROM tickets
+          WHERE status = 'done' AND finished_at IS NOT NULL
+            AND julianday(finished_at) >= julianday('now', '-7 days')
+          GROUP BY substr(finished_at, 1, 10)
+        `).all();
+        const counts = new Map(grouped.map(({ day, total }) => [day, total]));
+        const weekly = Array.from({ length: 7 }, (_, index) => {
+          const date = new Date();
+          date.setUTCHours(12, 0, 0, 0);
+          date.setUTCDate(date.getUTCDate() - (6 - index));
+          const day = date.toISOString().slice(0, 10);
+          return { day, total: counts.get(day) ?? 0 };
+        });
+        const average = db.prepare(`
+          SELECT ROUND(AVG((julianday(called_at) - julianday(created_at)) * 1440), 1) AS minutes
+          FROM tickets
+          WHERE called_at IS NOT NULL
+            AND julianday(called_at) >= julianday('now', '-30 days')
+        `).get();
+        return {
+          active: present(db.prepare("SELECT id,status,created_at,called_at,finished_at FROM tickets WHERE status='active'").get()),
+          waiting: db.prepare("SELECT id,status,created_at,called_at,finished_at FROM tickets WHERE status='waiting' ORDER BY id LIMIT 100").all().map(present),
+          waitingCount: db.prepare("SELECT count(*) AS count FROM tickets WHERE status='waiting'").get().count,
+          doneCount: db.prepare("SELECT count(*) AS count FROM tickets WHERE status='done'").get().count,
+          completedToday: counts.get(today) ?? 0,
+          averageWaitMinutes: average.minutes,
+          weekly,
+          recent: db.prepare("SELECT id,status,created_at,called_at,finished_at FROM tickets WHERE status='done' ORDER BY id DESC LIMIT 5").all().map(present)
+        };
+      });
     },
     close() { db.close(); }
   };

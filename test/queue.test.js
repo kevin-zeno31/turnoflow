@@ -34,7 +34,11 @@ test('API: llamadas concurrentes, validaciones y aislamiento local', async () =>
   const origin = `http://127.0.0.1:${server.address().port}`;
   const post = (route, body, extra = {}) => fetch(origin + route, { method:'POST', headers:{'Content-Type':'application/json',...extra}, body:JSON.stringify(body) });
   try {
-    assert.equal((await fetch(origin)).status, 200);
+    const landing = await fetch(origin);
+    assert.equal(landing.status, 200);
+    assert.match(await landing.text(), /TurnoFlow — Gestión de atención/);
+    assert.equal((await fetch(origin + '/app.js')).status, 200);
+    assert.equal((await fetch(origin + '/style.css')).status, 200);
     assert.equal((await post('/api/tickets', {requestKey:'request-0000000001'})).status, 201);
     assert.equal((await post('/api/tickets', {requestKey:'request-0000000002'})).status, 201);
     const calls = await Promise.all([post('/api/call', {}), post('/api/call', {})]);
@@ -49,4 +53,27 @@ test('API: llamadas concurrentes, validaciones y aislamiento local', async () =>
     assert.equal((await fetch(origin+'/server.js')).status, 404);
     assert.equal((await fetch(origin+'/data/turnoflow.sqlite')).status, 404);
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); store.close(); }
+});
+
+test('Analítica: métricas y series de siete días conservan un esquema estable', () => {
+  const store = openStore(':memory:');
+  try {
+    const empty = store.snapshot();
+    assert.equal(empty.completedToday, 0);
+    assert.equal(empty.averageWaitMinutes, null);
+    assert.equal(empty.weekly.length, 7);
+    assert.equal(empty.weekly.every(day => /^\d{4}-\d{2}-\d{2}$/.test(day.day) && day.total === 0), true);
+
+    const created = store.create('request-analytics-0001');
+    store.callNext();
+    const afterCall = store.snapshot();
+    assert.equal(afterCall.averageWaitMinutes >= 0, true);
+    store.finish(created.id);
+    const completed = store.snapshot();
+    assert.equal(completed.completedToday, 1);
+    assert.equal(completed.weekly.at(-1).total, 1);
+    assert.equal(completed.doneCount, 1);
+  } finally {
+    store.close();
+  }
 });

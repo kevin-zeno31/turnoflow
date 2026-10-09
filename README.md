@@ -1,85 +1,129 @@
 # TurnoFlow
 
-Primera versión de un gestor de turnos construido desde cero para un portafolio de desarrollo. Permite solicitar un número, llamar al siguiente y finalizar su atención. Es una **demostración local**, con una fila y un módulo de atención.
+**Sistema de gestión de turnos para espacios de atención.** Un proyecto Full Stack de portafolio construido con **JavaScript, Node.js y SQLite**, sin frameworks ni dependencias de producción.
 
-## Arranque rápido en Windows
+TurnoFlow permite que una persona solicite un número, que un operador llame al siguiente turno en orden de llegada y que una pantalla pública muestre la atención actual. Incluye información persistente y un panel renovado con métricas reales.
 
-1. Instala **Node.js 24 o posterior** desde https://nodejs.org si aún no lo tienes. Comprueba la versión con `node --version`.
-2. Extrae todo el ZIP. Abre la carpeta `turnoflow` en VS Code o en una terminal.
-3. Ejecuta `npm start`.
-4. Abre **http://localhost:3000** en tu navegador.
-5. Detén el servidor con **Ctrl+C** en la terminal cuando termines.
+> **Estado:** v0.2 · Demo local. No usar para operaciones reales con público hasta incorporar autenticación, permisos y una revisión de seguridad.
 
-No se necesita `npm install`: esta versión no tiene dependencias externas. No utiliza Docker, emuladores, herramientas de compilación ni servicios de pago. No se instala como servicio de Windows ni se configura para arrancar automáticamente.
+## Tres experiencias en una aplicación
 
-Si PowerShell bloquea `npm.ps1`, usa `npm.cmd start` o directamente `node server.js`; no necesitas cambiar la política de ejecución.
+| Vista | Función | Ruta |
+| --- | --- | --- |
+| **Operador** | Control de fila, atención actual, estadísticas e historial. | `/#operador` |
+| **Solicitar** | Emisión de un número e impresión de comprobante. | `/#solicitar` |
+| **Pantalla pública** | Visualización del turno activo y los próximos números. | `/#pantalla` |
 
-## Prueba el recorrido
+### Características implementadas
 
-Abre tres pestañas en el mismo navegador:
+- Turnos correlativos `A-001`, `A-002`... por orden de llegada (**FIFO**).
+- Una única atención activa por módulo, validada por transacciones en SQLite.
+- Persistencia de turnos entre reinicios del servidor.
+- Protección de reintentos de emisión mediante claves de idempotencia.
+- Panel con turnos pendientes, activos, finalizados y espera promedio (últimos 30 días).
+- Gráfico de atenciones finalizadas de los últimos siete días, agrupado por fecha **UTC**.
+- Historial de últimas atenciones y número de atenciones finalizadas hoy (UTC).
+- Comprobante imprimible y recuperación del último comprobante dentro de la pestaña.
+- Actualización de la información cada tres segundos cuando la pestaña está visible.
+- Mensajes de error, controles deshabilitados durante operaciones y aviso de conexión.
+- Diseño oscuro adaptable a escritorio y celular, sin fuentes ni scripts externos.
+- Pruebas automatizadas de API, base de datos, persistencia y métricas.
 
-- http://localhost:3000/#solicitar — presiona **Obtener mi turno**.
-- http://localhost:3000/#operador — presiona **Llamar siguiente turno**.
-- http://localhost:3000/#pantalla — comprueba que aparece el número y módulo.
+## Ejecutar en Windows
 
-Vuelve al operador y presiona **Finalizar atención**. Solicita varios turnos para comprobar el orden de llegada. Las vistas visibles consultan al servidor cada tres segundos. Las pestañas ocultas pausan esas consultas y actualizan al volver.
+**Requisito:** Node.js **24 o superior** ([nodejs.org](https://nodejs.org/)).
 
-## Qué incluye
+```powershell
+git clone https://github.com/kevin-zeno31/turnoflow.git
+cd turnoflow
+node --version
+npm start
+```
 
-- Interfaz adaptable a celular y escritorio, en español.
-- API HTTP y persistencia real en SQLite.
-- Numeración continua `A-001`, `A-002`, etc.; no se reinicia cada día.
-- Un solo turno en atención, protegido por transacción y restricción de base de datos.
-- Reintento de creación con clave de idempotencia: una misma solicitud no duplica turnos.
-- Validaciones, mensajes de error, botones bloqueados durante operaciones y estado de conexión.
-- Pruebas de persistencia, flujo FIFO, concurrencia y validación HTTP.
+Abre **http://localhost:3000**. Para detener el servidor: `Ctrl+C`.
+
+No necesitas `npm install`, Docker, servidor externo de base de datos ni una tarjeta de crédito. Si PowerShell bloquea `npm.ps1`, puedes ejecutar `npm.cmd start` o `node server.js`.
+
+### Recorrido recomendado
+
+1. Abre `http://localhost:3000/#solicitar` y presiona **Obtener mi turno**.
+2. Abre una segunda pestaña con `http://localhost:3000/#operador` y llama al siguiente turno.
+3. Abre `http://localhost:3000/#pantalla` para ver el número y el módulo.
+4. Vuelve al operador, finaliza la atención y revisa las métricas.
+5. Reinicia `npm start` para comprobar que la información se conserva.
+
+> Las tres vistas son accesibles en el mismo computador. La vista del operador **no está protegida por autenticación**: no debes exponer el servidor en internet.
 
 ## Arquitectura
 
+```text
+┌───────────────────────────────────────┐
+│ Navegador · HTML + CSS + JavaScript   │
+│ Operador · Solicitar · Pantalla       │
+└────────────────────┬──────────────────┘
+                     │ HTTP + JSON
+┌────────────────────▼──────────────────┐
+│ Node.js · server.js                    │
+│ API REST, validaciones y servidor web │
+└────────────────────┬──────────────────┘
+                     │
+┌────────────────────▼──────────────────┐
+│ SQLite · store.js                      │
+│ Fila FIFO, transacciones, métricas     │
+└───────────────────────────────────────┘
+```
+
 | Archivo | Responsabilidad |
 | --- | --- |
-| `public/index.html` | Estructura de las tres vistas |
-| `public/style.css` | Presentación y adaptación a pantallas |
-| `public/app.js` | Interacción del navegador y llamadas a la API |
-| `server.js` | Servidor HTTP, rutas y validación de entrada |
-| `store.js` | Reglas de la fila, transacciones y consultas SQLite |
-| `test/queue.test.js` | Pruebas automatizadas |
+| `public/index.html` | Vistas y elementos accesibles de la interfaz. |
+| `public/style.css` | Identidad visual responsive e impresión. |
+| `public/app.js` | Renderizado, eventos, polling y comunicación con la API. |
+| `server.js` | API HTTP, validación, cabeceras y archivos públicos. |
+| `store.js` | Persistencia SQLite y operaciones transaccionales. |
+| `test/queue.test.js` | Pruebas de reglas, API, concurrencia y métricas. |
+| `docs/architecture.md` | Decisiones, contratos y limitaciones técnicas. |
 
-Flujo: navegador → API de Node.js → base SQLite. Se usa JavaScript nativo en la interfaz para mantener pequeño el primer proyecto y hacer visible cada paso. Node incluye HTTP y SQLite; el sistema no depende de un servidor de base de datos aparte. Una futura versión puede migrar la interfaz a React manteniendo el contrato HTTP.
+### Endpoints principales
 
-## API
-
-| Método y ruta | Entrada JSON | Resultado |
+| Método | Ruta | Acción |
 | --- | --- | --- |
-| `GET /api/queue` | — | Turno activo, fila y contadores |
-| `POST /api/tickets` | `{"requestKey":"identificador-unico-123"}` | Turno creado o existente para esa clave |
-| `POST /api/call` | `{}` | Primer turno pendiente |
-| `POST /api/finish` | `{"id":1}` | Turno finalizado |
+| `GET` | `/api/queue` | Estado y estadísticas de la fila. |
+| `POST` | `/api/tickets` | Crear o recuperar un turno con `{ "requestKey": "..." }`. |
+| `POST` | `/api/call` | Llamar al primer turno pendiente con `{}`. |
+| `POST` | `/api/finish` | Finalizar el turno activo con `{ "id": 1 }`. |
 
-Las operaciones incompatibles con el estado de la fila devuelven `409`. Las entradas inválidas devuelven `400`. El listado muestra como máximo los primeros 100 turnos pendientes; el contador incluye todos.
+Operaciones incompatibles con la fila devuelven `409`; entradas inválidas, `400`. El servidor rechaza solicitudes web cross-site y escucha únicamente en `127.0.0.1`.
 
 ## Pruebas
 
-Ejecuta `npm test` (o `node --test`). Las pruebas utilizan bases temporales, sin tocar tus turnos locales.
+```powershell
+npm test
+```
 
-## Datos y consumo
+La suite cubre persistencia, FIFO, reintentos, llamadas simultáneas, errores de API, aislamiento local y esquema de las métricas. Las pruebas usan bases de datos temporales, sin modificar tus turnos.
 
-La base se crea en `data/turnoflow.sqlite`. Los turnos permanecen al cerrar y abrir. No se recopilan nombres, RUT, correos ni teléfonos. `data/` está excluido de Git. Para respaldarla, detén primero el servidor y copia la carpeta `data` completa.
+## Seguridad y límites
 
-Mientras está abierto hay un proceso Node.js y las pestañas del navegador. Su consumo no es cero y depende del uso; esta arquitectura evita procesos de compilación, contenedores y bases de datos separadas. No se ha medido el consumo en tu PC. Con Ctrl+C se detiene el servidor; cierra también las pestañas cuando quieras liberar sus recursos.
+- Solo para demostración **en un equipo local**. No hay usuarios, autenticación ni roles.
+- Las solicitudes de operador no están autorizadas por cuenta. Antes de un despliegue real se deben añadir autenticación, permisos, auditoría y controles de abuso.
+- No se recopilan nombres, RUT, correos ni números de teléfono.
+- Los datos se guardan en `data/turnoflow.sqlite`; `data/` está ignorada por Git.
+- Los turnos no se reinician por día. Los contadores históricos son acumulados.
+- Los siete días del gráfico y el indicador **hoy** utilizan UTC. La hora mostrada en filas utiliza la zona horaria del navegador.
+- Solo hay un módulo de atención y no existe la opción de cancelar un turno.
+- La actualización usa polling cada 3 segundos (todavía no WebSockets).
 
-## Límites de esta versión
+## Próximos hitos
 
-No incluye cuentas ni autenticación. El panel del operador es una vista de demostración, no un rol protegido. El servidor acepta conexiones únicamente desde el mismo PC y rechaza orígenes web ajenos. No permite conectar una pantalla de otro dispositivo. **No publiques este servidor en internet ni cambies su enlace de red para uso real** sin añadir autenticación, permisos, límites de solicitudes y revisar el despliegue.
+- [ ] Autenticación de operador y separación de permisos.
+- [ ] Múltiples módulos y tipos de atención.
+- [ ] Cancelación, pausas y transferencia de turnos.
+- [ ] Alertas de llamado y configuración de accesibilidad.
+- [ ] Reportes exportables y métricas por módulo.
+- [ ] Demo desplegada con mecanismos de seguridad y datos ficticios.
 
-La pantalla pública es una vista del mismo servidor local. Si se pierde la conexión, conserva el último dato visible con un aviso de desactualización. Las cifras de finalizados son acumuladas, no diarias. No hay cancelación de turnos, múltiples módulos, sonidos ni métricas avanzadas.
+## Autor
 
-## Próximas etapas
+Proyecto desarrollado para el portafolio de **[kevin-zeno31](https://github.com/kevin-zeno31)**.
 
-1. Revisar juntos el recorrido y comprender `app.js`, `server.js` y `store.js`.
-2. Crear un repositorio independiente `turnoflow` en tu GitHub y subir esta base; no mezclarla con el repositorio de perfil.
-3. Añadir acceso del operador y permisos antes de publicar una demo compartida.
-4. Seleccionar alojamiento sin coste comprobando sus límites vigentes, sin introducir tarjeta ni activar cobros.
-5. Documentar la demo con capturas y decisiones técnicas.
-
-Este paquete no crea ni modifica repositorios en GitHub y no contrata alojamiento. Node.js, SQLite y el código de esta base no requieren una suscripción de pago.
+**Stack:** JavaScript · HTML5 · CSS3 · Node.js · SQLite · GitHub Actions.
